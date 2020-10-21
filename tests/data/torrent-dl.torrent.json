@@ -1,0 +1,162 @@
+{
+  "name": "torrent-dl",
+  "announce": [
+    "udp://open.stealth.si:80/announce",
+    "udp://tracker.uw0.xyz:6969/announce",
+    "udp://tracker.cyberia.is:6969/announce",
+    "http://tracker.ipv6tracker.ru:80/announce",
+    "udp://tracker.birkenwald.de:6969/announce",
+    "http://vps02.net.orel.ru:80/announce",
+    "http://tracker.bt4g.com:2095/announce",
+    "http://tracker.files.fm:6969/announce"
+  ],
+  "infoHash": "129d7639b8ff54df9a249f8ea32278b1286cd339",
+  "private": false,
+  "created": "2020-10-21T16:22:00.000Z",
+  "createdBy": "Transmission/2.92 (14714)",
+  "urlList": [],
+  "files": [
+    {
+      "path": "torrent-dl/LICENSE",
+      "name": "LICENSE",
+      "length": 35149,
+      "offset": 0
+    },
+    {
+      "path": "torrent-dl/person.txt",
+      "name": "person.txt",
+      "length": 1406,
+      "offset": 35149
+    },
+    {
+      "path": "torrent-dl/Pipfile",
+      "name": "Pipfile",
+      "length": 241,
+      "offset": 36555
+    },
+    {
+      "path": "torrent-dl/Pipfile.lock",
+      "name": "Pipfile.lock",
+      "length": 17313,
+      "offset": 36796
+    },
+    {
+      "path": "torrent-dl/README.md",
+      "name": "README.md",
+      "length": 28,
+      "offset": 54109
+    },
+    {
+      "path": "torrent-dl/setup.cfg",
+      "name": "setup.cfg",
+      "length": 305,
+      "offset": 54137
+    },
+    {
+      "path": "torrent-dl/test.txt",
+      "name": "test.txt",
+      "length": 510578,
+      "offset": 54442
+    },
+    {
+      "path": "torrent-dl/tests/data/manjaro-gnome-20.1.2-201019-linux58.iso.torrent",
+      "name": "manjaro-gnome-20.1.2-201019-linux58.iso.torrent",
+      "length": 26875,
+      "offset": 565020
+    },
+    {
+      "path": "torrent-dl/tests/data/torrent-dl.torrent",
+      "name": "torrent-dl.torrent",
+      "length": 2309,
+      "offset": 591895
+    },
+    {
+      "path": "torrent-dl/tests/data/ubuntu-20.04.1-desktop-amd64.iso.json",
+      "name": "ubuntu-20.04.1-desktop-amd64.iso.json",
+      "length": 510578,
+      "offset": 594204
+    },
+    {
+      "path": "torrent-dl/tests/data/ubuntu-20.04.1-desktop-amd64.iso.torrent",
+      "name": "ubuntu-20.04.1-desktop-amd64.iso.torrent",
+      "length": 212838,
+      "offset": 1104782
+    },
+    {
+      "path": "torrent-dl/tests/data/ubuntu-20.04.1-desktop-amd64.isonew.torrent",
+      "name": "ubuntu-20.04.1-desktop-amd64.isonew.torrent",
+      "length": 212735,
+      "offset": 1317620
+    },
+    {
+      "path": "torrent-dl/tests/test_torrent.py",
+      "name": "test_torrent.py",
+      "length": 1149,
+      "offset": 1530355
+    },
+    {
+      "path": "torrent-dl/torrent-dl.json",
+      "name": "torrent-dl.json",
+      "length": 5368,
+      "offset": 1531504
+    },
+    {
+      "path": "torrent-dl/torrent_dl/torrent.py",
+      "name": "torrent.py",
+      "length": 2713,
+      "offset": 1536872
+    }
+  ],
+  "length": 1539585,
+  "pieceLength": 32768,
+  "lastPieceLength": 32257,
+  "pieces": [
+    "0d8e7b357bc8c1d3e6bf97cff6ea1ede0c84585a",
+    "670e54299aa50c25571ffbdb6564be21752d2bd7",
+    "a2430712dd46eee4d4c94e327a669f390296aba6",
+    "d834848ec32f06d367084d75e390322c3b0fbde9",
+    "5e0f0bfb7b0b9fa4a46ffcab634b9de25ef3c83b",
+    "49a061318dcb50ad86cbd323305107f4d5a36de7",
+    "1ea39e4e3c285c4fd085134507ad827dff87f82d",
+    "41b9009daefac63c577b0591eb2be57ac7f09ceb",
+    "1d0d3222fdc20db3e41534617358acefe440888a",
+    "8e0893645f387059d7a64df876a517507e657ea2",
+    "8a66c08169c032570a8e4cdf0c2641a28dea748d",
+    "fac90f8ed97228a0c735503192b7c121f61589f7",
+    "03a3ad39cc33b50be2795efc7e49d27aa0aac02c",
+    "1e5a30e49c2fa3eead6add6e882a0b761e4bf48f",
+    "25ad4c49bd63ebd5cfa153a3fa82b5c3e34c4abc",
+    "1cbaaac7f46ead576f4f3e3b5db48363fb0bf8e9",
+    "9b2faf4439c0eb9f3bcb2ee3e2975af13a2c96e4",
+    "d72c43c163c989824e29509e22f183f7cfc5fa7b",
+    "3732582cfee442c3e87f8287d6d4d6155b0cd7f6",
+    "064508aec3327760b91222ff8f84669385945fa8",
+    "4ad3d356775aa41825108b4d161441a4fc525f8d",
+    "439076c5295bac4bf1d43e0ae8921fa239a88ae2",
+    "086c599de321ed9942dfecda7b97bdda834f215a",
+    "c7827c0d21da1c035f9909a60ac89a9b03f2963c",
+    "110064a72d74fff7f2837524983783013733d8dd",
+    "ef1a44a5af44114e16afcda07dc5ad320751a736",
+    "e638fe2ac9e550e81b675f1b0c914ae50f6524a4",
+    "9f27bfc171a29874dc6e5fb63933085a4668fa8a",
+    "b0ddf0d652c9b9b1ddeeb9be8bb3b0f4a14fcf72",
+    "08bbef1066232cdfc0afc95e8877328c9f8e784e",
+    "4963c2ac4cb6dd4da6888edd8c3099d59eab60a7",
+    "5f4512b9ca66e0e8ad6db8c0d9e7d63ea85d2c8a",
+    "209896a1af7437e78dbd2dc1bf7b1b3d636e8043",
+    "8ee858e235411b90b61f7d0c0bb4a55215eb462a",
+    "b1c2ac87a226f2656f16070bca83c9169d0445a2",
+    "519d17d2915b07a1c61cd227b32278bdfa6de4cf",
+    "4f2a1a284667b342bedc25effa381bb68a1277b7",
+    "f899552abb07ba4deb2085bf70f5dc5f12486c08",
+    "6d034f3c92f5a61b6bada180cce40b09cc0a5537",
+    "f7c4a9800c2fbea3d7dfb45e7c27a157c6cca936",
+    "b58d48bbde56fdb310930d15dabe94e7d3674941",
+    "7045e399657cbccda918494719421426e5f9da90",
+    "0ddf558e05b2cc90468047ede9fa95fed4f66a65",
+    "3748c34bd0d126ea8aac876373699274dd08d4d3",
+    "29f52751444e5a32ed83a7a76bbcc1a2455b0c3c",
+    "ab2da6337a086ba2f60b3adcc5361e8f397bb5c6",
+    "148c8a6493082cd1e623f98fe200e9d8c0e1236b"
+  ]
+}
