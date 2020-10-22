@@ -4,15 +4,16 @@ from typing import List, Dict, Any, Union
 from bencodepy import Bencode
 
 metainfo_type = Dict[str, Any]
-files_type = List[Dict[str, Union[int, List[str]]]]
+files_type = List[Dict[str, Union[int, str]]]
 
 
 class Torrent:
     def __init__(self):
         self.metainfo: metainfo_type = {}
         self.name: str = ""
+        self.total_length: int = 0
         self.files: files_type = []
-        self.trackers: List[List[str]] = []
+        self.trackers: List[str] = []
         self.pieces: bytes = b""
         self.piece_length: int = 0
         self.info_hash: bytes = b""
@@ -41,21 +42,25 @@ class Torrent:
             for _file in self.metainfo["info"]["files"]:
                 path: str = "/".join(_file["path"])
                 length: int = _file["length"]
+                self.total_length += length
                 self.files.append({"path": path, "length": length})
         else:
             path: str = self.metainfo["info"]["name"]
             length: int = self.metainfo["info"]["length"]
+            self.total_length = length
             self.files.append({"path": path, "length": length})
 
     def parse_trackers(self):
         if "announce-list" in self.metainfo:
-            self.trackers = self.metainfo["announce-list"]
+            for trackers_list in self.metainfo["announce-list"]:
+                self.trackers += trackers_list
         else:
-            self.trackers = [[self.metainfo["announce"]]]
+            self.trackers.append(self.metainfo["announce"])
 
     def __repr__(self):
         res: str = ""
         res += "name: {}\n".format(self.name)
+        res += "total_length: {}\n".format(self.total_length)
         res += "files:\n"
         for i in self.files:
             res += "- path: {}\n  length: {}\n".format(i["path"], i["length"])
@@ -72,7 +77,7 @@ if __name__ == "__main__":
     file_name: str = ""
     _dir = os.path.dirname(__file__)
     file_name = "../tests/data/ubuntu-20.04.1-desktop-amd64.iso.torrent"
-    #  file_name = "../tests/data/torrent-dl.torrent"
+    file_name = "../tests/data/torrent-dl.torrent"
     t = Torrent()
     t.open_from_file(os.path.join(_dir, file_name))
     print(t)

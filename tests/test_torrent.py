@@ -4,7 +4,7 @@ import json
 from torrent_dl.torrent import Torrent
 
 
-_dir: str = os.path.dirname(__file__)
+BASE_DIR: str = os.path.dirname(__file__)
 
 
 @pytest.mark.parametrize(
@@ -19,24 +19,35 @@ _dir: str = os.path.dirname(__file__)
 )
 def test_open_from_file(file_name: str, res_file: str) -> None:
     t = Torrent()
-    t.open_from_file(os.path.join(_dir, file_name))
-    with open(os.path.join(_dir, res_file), mode="r") as _file:
+    t.open_from_file(os.path.join(BASE_DIR, file_name))
+    with open(os.path.join(BASE_DIR, res_file), mode="r") as _file:
         res_data = json.load(_file)
 
-    #  props = "name", "files", "trackers", "pieces", "piece_length", "info_hash"
+    # check torrent name
     assert t.name == res_data["name"]
+
+    # check total length of torrent
+    assert t.total_length == res_data["length"]
+
+    # check all files in torrent
+    # sort all files by their name so as to check both dictionaty values
     t.files.sort(key=lambda x: x["path"])
     res_data["files"].sort(key=lambda x: x["path"])
     for i in range(len(t.files)):
-        assert t.name + "/" + t.files[i]["path"] == res_data["files"][i]["path"]
-        assert t.files[i]["length"] == res_data["files"][i]["length"]
+        curr_file = t.files[i]
+        curr_res_file = res_data["files"][i]
+        assert "{}/{}".format(t.name, curr_file["path"]) == curr_res_file["path"]
+        assert curr_file["length"] == curr_res_file["length"]
 
-    for i in t.trackers:
-        for j in i:  # type: ignore
-            assert j in res_data["announce"]
+    # check all trackers in torrent
+    for tracker in t.trackers:
+        assert tracker in res_data["announce"]
 
+    # check the pieces
     assert "".join(res_data["pieces"]) == t.pieces.hex()
+    # check pieces length
     assert t.piece_length == res_data["pieceLength"]
+    # check info hash
     assert t.info_hash.hex() == res_data["infoHash"]
 
 
