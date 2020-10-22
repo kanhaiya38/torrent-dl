@@ -19,6 +19,7 @@ class Torrent:
         self.info_hash: bytes = b""
 
     def open_from_file(self, file_name: str) -> None:
+        """open torrent from a file"""
         bc = Bencode(encoding="utf-8", encoding_fallback="value")
         try:
             with open(file_name, mode="rb") as _file:
@@ -36,9 +37,9 @@ class Torrent:
         self.parse_files()
         self.parse_trackers()
 
-    def parse_files(self):
+    def parse_files(self) -> None:
+        """parse all file paths and length from the metainfo"""
         if "files" in self.metainfo["info"]:
-            #  self.files = self.metainfo["info"]["files"]
             for _file in self.metainfo["info"]["files"]:
                 path: str = "/".join(_file["path"])
                 length: int = _file["length"]
@@ -50,14 +51,15 @@ class Torrent:
             self.total_length = length
             self.files.append({"path": path, "length": length})
 
-    def parse_trackers(self):
+    def parse_trackers(self) -> None:
+        """parse list of all the trackers from metainfo"""
         if "announce-list" in self.metainfo:
             for trackers_list in self.metainfo["announce-list"]:
                 self.trackers += trackers_list
         else:
             self.trackers.append(self.metainfo["announce"])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         res: str = ""
         res += "name: {}\n".format(self.name)
         res += "total_length: {}\n".format(self.total_length)

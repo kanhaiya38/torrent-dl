@@ -23,14 +23,15 @@ def test_open_from_file(file_name: str, res_file: str) -> None:
     with open(os.path.join(BASE_DIR, res_file), mode="r") as _file:
         res_data = json.load(_file)
 
-    # check torrent name
+    #### checklist
+    # 1. name
     assert t.name == res_data["name"]
 
-    # check total length of torrent
+    # 2. total length of torrent
     assert t.total_length == res_data["length"]
 
-    # check all files in torrent
-    # sort all files by their name so as to check both dictionaty values
+    # 3. all files in torrent
+    # sort all files by their pathname so as to check both dictionaty values
     t.files.sort(key=lambda x: x["path"])
     res_data["files"].sort(key=lambda x: x["path"])
     for i in range(len(t.files)):
@@ -39,15 +40,17 @@ def test_open_from_file(file_name: str, res_file: str) -> None:
         assert "{}/{}".format(t.name, curr_file["path"]) == curr_res_file["path"]
         assert curr_file["length"] == curr_res_file["length"]
 
-    # check all trackers in torrent
+    # 4. trackers
     for tracker in t.trackers:
         assert tracker in res_data["announce"]
 
-    # check the pieces
+    # 5. pieces
     assert "".join(res_data["pieces"]) == t.pieces.hex()
-    # check pieces length
+
+    # 6. piece length
     assert t.piece_length == res_data["pieceLength"]
-    # check info hash
+
+    # 7. info hash
     assert t.info_hash.hex() == res_data["infoHash"]
 
 
