@@ -1,19 +1,20 @@
 import os
 from hashlib import sha1
-from typing import List, Dict, Any, Union
+from typing import Any, Dict, List, Set, Union
+
 from bencodepy import Bencode
 
-metainfo_type = Dict[str, Any]
-files_type = List[Dict[str, Union[int, str]]]
+MetainfoType = Dict[str, Any]
+FilesType = List[Dict[str, Union[int, str]]]
 
 
 class Torrent:
     def __init__(self):
-        self.metainfo: metainfo_type = {}
+        self.metainfo: MetainfoType = {}
         self.name: str = ""
         self.total_length: int = 0
-        self.files: files_type = []
-        self.trackers: List[str] = []
+        self.files: FilesType = []
+        self.trackers: Set[str] = set()
         self.pieces: bytes = b""
         self.piece_length: int = 0
         self.info_hash: bytes = b""
@@ -39,15 +40,17 @@ class Torrent:
 
     def parse_files(self) -> None:
         """parse all file paths and length from the metainfo"""
+        path: str = ""
+        length: int = 0
         if "files" in self.metainfo["info"]:
             for _file in self.metainfo["info"]["files"]:
-                path: str = "/".join(_file["path"])
-                length: int = _file["length"]
+                path = "/".join(_file["path"])
+                length = _file["length"]
                 self.total_length += length
                 self.files.append({"path": path, "length": length})
         else:
-            path: str = self.metainfo["info"]["name"]
-            length: int = self.metainfo["info"]["length"]
+            path = self.metainfo["info"]["name"]
+            length = self.metainfo["info"]["length"]
             self.total_length = length
             self.files.append({"path": path, "length": length})
 
@@ -55,23 +58,23 @@ class Torrent:
         """parse list of all the trackers from metainfo"""
         if "announce-list" in self.metainfo:
             for trackers_list in self.metainfo["announce-list"]:
-                self.trackers += trackers_list
+                self.trackers.update(trackers_list)
         else:
-            self.trackers.append(self.metainfo["announce"])
+            self.trackers.add(self.metainfo["announce"])
 
     def __repr__(self) -> str:
         res: str = ""
-        res += "name: {}\n".format(self.name)
-        res += "total_length: {}\n".format(self.total_length)
+        res += f"name: {self.name}\n"
+        res += f"total_length: {self.total_length}\n"
         res += "files:\n"
-        for i in self.files:
-            res += "- path: {}\n  length: {}\n".format(i["path"], i["length"])
+        for f in self.files:
+            res += f"- path: {f['path']}\n  length: {f['length']}\n"
         res += "trackers:\n"
-        for i in self.trackers:
-            res += "- {}\n".format(i)
+        for t in self.trackers:
+            res += f"- {t}\n"
         #  res += "pieces: {}\n".format(self.pieces)
-        res += "piece_length: {}\n".format(self.piece_length)
-        res += "info_hash: {}\n".format(self.info_hash)
+        res += f"piece_length: {self.piece_length}\n"
+        res += f"info_hash: {self.info_hash.hex()}\n"
         return res
 
 
