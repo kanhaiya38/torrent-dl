@@ -1,100 +1,84 @@
+from messages import Handshake
 import logging
-import os
-from random import randint
-import asyncio
-from yarl import URL
-from aiohttp import ClientSession
-
-from typing import List, Set, Dict, Union
-import bencodepy
-from torrent import Torrent
-import urllib
-
-BASE_DIR: str = os.path.dirname(__file__)
-CLIENT_ID: str = "BT"
-VERSION: tuple = (0, 0, 10)
-MAX_PEERS: int = 50
-PeersType = List[Dict[str, Union[str, int, bytes]]]
+import threading
+from threading import Thread
+import socket
 
 
-class PeerManager:
-    """Manage all peers"""
+class Peer(Thread):
+    def __init__(self, peer_id, ip, port):
+        super().__init__()
+        self.peer_id = peer_id
+        self.ip = ip
+        self.port = port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.lock = threading.Lock()
+        self.lock1 = threading.Lock()
+        self.client_choking = True
+        self.client_interested = False
+        self.peer_choking = True
+        self.peer_interseted = False
+        self.write_buffer = b""
+        self.read_buffer = b""
+        self.handshake = False
 
-    def __init__(self, torrent: Torrent):
-        self.peer_id: str = self.generate_peer_id()
-        self.trackers: Set[str] = torrent.trackers
-        self.info_hash: bytes = torrent.info_hash
-        self.total_length: int = torrent.total_length
-        self.port: int = 6881
-        self.peers: PeersType = []
-        asyncio.run(self.get_peers())
-        logging.debug(self)
-
-    async def _get_peers_from_tracker(self, url: str, session: ClientSession) -> None:
+    def connect(self):
         try:
-            async with session.get(url) as res:
-                t = await res.read()
-                self.scrape_response(t)
+            self.sock.connect((self.ip, self.port))
+            #  self.sock.setblocking(False)
+            logging.debug(f"connected to peer - {self.ip}:{self.port}")
+            #  send_thread = threading.Thread(target=self.send)
+            #  recv_thread = threading.Thread(target=self.receive)
+            #  send_thread.start()
+            #  recv_thread.start()
+            #  send_thread.join()
+            #  recv_thread.join()
+            #  print("here")
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
+            return False
+        return True
 
-    async def get_peers(self):
-        """Get list of all peers from the given trackers"""
-        params = urllib.parse.urlencode(
-            {
-                "info_hash": self.info_hash,
-                "peer_id": self.peer_id,
-                "port": self.port,
-                "uploaded": 0,
-                "downloaded": 0,
-                "left": self.total_length,
-            }
-        )
-        async with ClientSession() as session:
-            tasks = []
-            for tracker in self.trackers:
-                url = URL(f"{tracker}?{params}", encoded=True)
-                print(url)
-                tasks.append(self._get_peers_from_tracker(url, session))
-            await asyncio.gather(*tasks)
+    def send(self):
+        while True:
+            if not self.write_buffer == b"":
+                print(self.write_buffer)
+                with self.lock:
+                    print("fuck")
+                    try:
+                        msg = self.write_buffer
+                        totalsent = 0
+                        while totalsent < len(msg):
+                            sent = self.sock.send(msg[totalsent:])
+                            if sent == 0:
+                                raise RuntimeError("socket connection broken")
+                            totalsent = totalsent + sent
+                            self.write_buffer = b""
+                    except Exception as e:
+                        logging.error(e)
 
-    def scrape_response(self, res):
-        bc = bencodepy.Bencode(encoding="utf-8", encoding_fallback="value")
-        print(bc.decode(res)["peers"])
-        self.peers += bc.decode(res)["peers"]
-        print(self.peers)
+    def receive(self):
+        while True:
+            if self.read_buffer == b"":
+                with self.lock1:
+                    try:
+                        chunk = self.sock.recv(1024)
+                        print("got", chunk)
+                        if chunk == b"":
+                            raise RuntimeError("socket connection broken")
+                        self.read_buffer = chunk
+                    except Exception as e:
+                        logging.error(e)
 
-    @staticmethod
-    def generate_peer_id() -> str:
-        """generate a unique peer id for client using azureus-style"""
-        peer_id: str = (
-            "-"
-            + CLIENT_ID
-            + "".join(map(str, VERSION))
-            + "-"
-            + "".join(str(randint(0, 9)) for i in range(12))
-        )
-        logging.info(f"peer id of client is {peer_id}")
-        return peer_id
-
-    def __repr__(self):
-        res: str = ""
-        res += f"peer id: {self.peer_id}\n"
-        res += "trackers:\n"
-        for t in self.trackers:
-            res += f"- {t}\n"
-        res += "peers:\n"
-        for peer in self.peers:
-            res += f"- ip: {peer['ip']}\n  peer id: {peer['peer id']}\n  port: {peer['port']}\n"
-        return res
-
-
-# TODO: 1. get trackers
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    file_name = "../tests/data/ubuntu-20.04.1-desktop-amd64.iso.torrent"
-    #  file_name = "../tests/data/manjaro-gnome-20.1.2-201019-linux58.iso.torrent"
-    #  file_name = "../tests/data/torrent-dl.torrent"
-    torrent = Torrent()
-    torrent.open_from_file(os.path.join(BASE_DIR, file_name))
-    PeerManager(torrent)
+    def handle_handshake(self, info_hash, peer_id):
+        hs_sent = Handshake(info_hash, peer_id)
+        #  self.send(hs_sent.to_bytes())
+        with self.lock:
+            self.write_buffer = hs_sent.to_bytes()
+        #  hs_recv = self.receive(Handshake.total_length)
+        #  self.read_buffer =
+        #  if hs_recv.info_hash != hs_sent.info_hash:
+        #      raise ValueError("Infohash of handshake doesn't match")
+        #  if hs_recv.peer_id != self.peer_id:
+        #      raise ValueError("Peer ID of handshake doesn't match")
+        #  logging.debug(f"Handshake successful with peer - {self.peer_id}:{self.port}")
