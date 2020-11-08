@@ -1,7 +1,47 @@
 #  TODO:
 #      1. bitfield message
 #      2. port message (used for dht tracekers)
+import bitstring
+import logging
 from struct import pack, unpack
+
+
+class MessageDispatcher:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def dispatch(self):
+        length_prefix: int
+        message_id: int
+
+        map_id_to_message = {
+            0: Choke,
+            1: UnChoke,
+            2: Interested,
+            3: NotInterested,
+            4: Have,
+            5: Bitfield,
+            6: Request,
+            7: Piece,
+            8: Cancel,
+            9: Port,
+        }
+
+        try:
+            length_prefix = unpack(">I", self.payload[:4])
+
+            if length_prefix == 0:
+                # keep alive message
+                return KeepAlive.from_bytes(self.payload)
+
+            message_id = unpack(">B", self.read_buffer[4:5])
+        except Exception as e:
+            logging.exception(e)
+
+        if message_id not in map_id_to_message.keys():
+            raise Exception("Wrong message id")
+
+        return map_id_to_message[message_id].from_bytes(self.payload)
 
 
 class Message:
@@ -74,6 +114,7 @@ class KeepAlive(Message):
 
     encoding_format: str = ">I"
     length_prefix: int = 0
+    total_length: int = 4
 
     def __init__(self):
         super().__init__()
@@ -127,7 +168,7 @@ class Choke(Message):
         return cls()
 
 
-class Unchoke(Message):
+class UnChoke(Message):
     """unchoke: <len=0001><id=1>
 
     length prefix: 1 (4 bytes)
@@ -268,7 +309,7 @@ class Have(Message):
         return cls(piece_index)
 
 
-class BitField(Message):
+class Bitfield(Message):
     """bitfield: <len=0001+X><id=5><bitfield>
 
     length prefix: 1 + bitfield length (4 bytes)
@@ -277,34 +318,43 @@ class BitField(Message):
         bitfield: bitfield representing the pieces that have been successfully downloaded (X bytes)
     """
 
-    length_prefix: int = 5
-    encoding_format: str = ">IB4s"
-    message_id: int = 4
+    message_id: int = 5
 
-    def __init__(self, piece_index):
+    def __init__(self, bitfield: bitstring.BitArray):
         super().__init__()
-        self.piece_index: int = piece_index
+        self.bitfield: bitstring.BitArray = bitfield
+        self.bitfield_length: int = len(self.bitfield)
+        self.length_prefix: int = 1 + self.bitfield_length
+        self.encoding_format: str = f">IB{self.bitfield_length}s"
+        self.total_length = self.length_prefix + 4
 
     def to_bytes(self):
+
         return pack(
-            self.encoding_format, self.length_prefix, self.message_id, self.piece_index
+            self.encoding_format, self.length_prefix, self.message_id, self.bitfield
         )
 
     @classmethod
     def from_bytes(cls, payload: bytes):
         length_prefix: int
         message_id: int
-        piece_index: int
+        raw_bitfield: bytes
+        bitfield: bitstring.BitArray
 
-        length_prefix, message_id, piece_index = unpack(cls.encoding_format, payload)
-
-        if length_prefix != cls.length_prefix:
-            raise Exception("Invalid prefix length for Have message")
+        length_prefix, message_id = unpack(
+            ">IB", payload[:5]
+        )  # length_prefix + message_id = 5 bytes
 
         if message_id != cls.message_id:
-            raise Exception("Invalid message id for Have message")
+            raise Exception("Invalid message id for Bitfield message")
 
-        return cls(piece_index)
+        bitfield_length = length_prefix - 1
+        total_length = length_prefix + 4
+        (raw_bitfield,) = unpack(f">{bitfield_length}s", payload[5:total_length])
+
+        bitfield = bitstring.BitArray(raw_bitfield)
+
+        return cls(bitfield)
 
 
 class Request(Message):
@@ -443,3 +493,7 @@ class Cancel(Message):
             raise Exception("Invalid message id for Cancel message")
 
         return cls(piece_index, block_begin, block_begin)
+
+
+class Port(Message):
+    pass

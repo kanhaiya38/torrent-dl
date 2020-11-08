@@ -15,7 +15,7 @@ class Torrent:
         self.total_length: int = 0
         self.files: FilesType = []
         self.trackers: Set[str] = set()
-        self.pieces: bytes = b""
+        self.pieces: List[bytes] = []
         self.piece_length: int = 0
         self.info_hash: bytes = b""
 
@@ -34,9 +34,19 @@ class Torrent:
         self.info_hash = sha1(raw_info_hash).digest()
         self.name = metainfo["info"]["name"]
         self.piece_length = metainfo["info"]["piece length"]
-        self.pieces = metainfo["info"]["pieces"]
+        #  self.pieces = metainfo["info"]["pieces"]
+        self.parse_pieces()
         self.parse_files()
         self.parse_trackers()
+
+    def parse_pieces(self) -> None:
+        pieces = self.metainfo["info"]["pieces"]
+        block_begin: int = 0
+        block_length: int = 20
+        self.pieces = [
+            pieces[block_begin : block_begin + block_length]
+            for block_begin in range(0, len(pieces), block_length)
+        ]
 
     def parse_files(self) -> None:
         """parse all file paths and length from the metainfo"""

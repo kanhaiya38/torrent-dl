@@ -1,11 +1,9 @@
+import math
 import os
-import socket
-import struct
 import logging
 from torrent import Torrent
 from peer_manager import PeerManager
 from peer import Peer
-from messages import Handshake, Interested
 import bitstring
 import multiprocessing
 
@@ -16,20 +14,29 @@ class DownloadManager:
     def __init__(self, torrent: Torrent):
         self.torrent = torrent
         self.pm = PeerManager(torrent)
-        self.pm.get_peers()
-        self.connected = []
+        self.bitfield = bitstring.BitArray(math.ceil(len(self.torrent.pieces) / 8))
 
     def conn(self):
+        self.pm.get_peers()
+        #  self.pm.start()
+        #  print(self.torrent.pieces)
         p = self.pm.peers[0]
-        pr = Peer(p[b"peer id"], p[b"ip"], p[b"port"])
+        #  pr = Peer(
+            #  p[b"peer id"], p[b"ip"], p[b"port"], self.info_hash, len(self.bitfield)
+        #  )
         #  if pr.connect():
-            #  self.connected.append(pr)
+        #  self.connected.append(pr)
         #  m = multiprocessing.Process(target=pr.connect)
         #  m.start()
-        pr.connect()
-        info_hash = self.torrent.info_hash
-        peer_id = self.pm.peer_id
-        pr.handle_handshake(info_hash, peer_id)
+        #  print(self.bitfield)
+        #  p.connect()
+        p.send()
+        p.receive()
+        print(p.read_buffer)
+        p.handle_handshake()
+        p.receive()
+        print(p.read_buffer)
+        p.handle_bitfield()
         #  pr.write_buffer = .to_bytes()
 
 

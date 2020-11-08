@@ -1,84 +1,121 @@
-from messages import Handshake
+import struct
+import message
 import logging
 import threading
 from threading import Thread
+import bitstring
 import socket
+from struct import pack, unpack
+
+MAX_BUFFER: int = 4096
 
 
-class Peer(Thread):
-    def __init__(self, peer_id, ip, port):
-        super().__init__()
+class Peer:
+    def __init__(self, peer_id, ip, port, info_hash, bitfield_length):
         self.peer_id = peer_id
+        self.info_hash = info_hash
         self.ip = ip
         self.port = port
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.lock = threading.Lock()
-        self.lock1 = threading.Lock()
-        self.client_choking = True
-        self.client_interested = False
+        self.bitfield = bitstring.BitArray(bitfield_length)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #  self.socket = None
+        self.am_choking = True
+        self.am_interested = False
         self.peer_choking = True
         self.peer_interseted = False
-        self.write_buffer = b""
+        self.has_handshaked = False
         self.read_buffer = b""
-        self.handshake = False
+        self.write_buffer = message.Handshake(self.info_hash, self.peer_id).to_bytes()
+        self.is_healthy = False
+
+    def fileno(self):
+        return self.socket.fileno()
 
     def connect(self):
-        try:
-            self.sock.connect((self.ip, self.port))
-            #  self.sock.setblocking(False)
-            logging.debug(f"connected to peer - {self.ip}:{self.port}")
-            #  send_thread = threading.Thread(target=self.send)
-            #  recv_thread = threading.Thread(target=self.receive)
-            #  send_thread.start()
-            #  recv_thread.start()
-            #  send_thread.join()
-            #  recv_thread.join()
-            #  print("here")
-        except Exception as e:
-            logging.exception(e)
-            return False
-        return True
+        self.socket = self.socket.connect((self.ip, self.port))
+        #  self.socket.setblocking(False)
+        self.is_healthy = True
+        logging.debug(f"connected to peer - {self.ip}:{self.port}")
 
     def send(self):
-        while True:
-            if not self.write_buffer == b"":
-                print(self.write_buffer)
-                with self.lock:
-                    print("fuck")
-                    try:
-                        msg = self.write_buffer
-                        totalsent = 0
-                        while totalsent < len(msg):
-                            sent = self.sock.send(msg[totalsent:])
-                            if sent == 0:
-                                raise RuntimeError("socket connection broken")
-                            totalsent = totalsent + sent
-                            self.write_buffer = b""
-                    except Exception as e:
-                        logging.error(e)
+        try:
+            msg = self.write_buffer
+            totalsent = 0
+            while totalsent < len(msg):
+                sent = self.socket.send(msg[totalsent:])
+                if sent == 0:
+                    raise RuntimeError("socket connection broken while sending")
+                totalsent = totalsent + sent
+                self.write_buffer = b""
+        except Exception as e:
+            logging.error(e)
 
     def receive(self):
-        while True:
-            if self.read_buffer == b"":
-                with self.lock1:
-                    try:
-                        chunk = self.sock.recv(1024)
-                        print("got", chunk)
-                        if chunk == b"":
-                            raise RuntimeError("socket connection broken")
-                        self.read_buffer = chunk
-                    except Exception as e:
-                        logging.error(e)
+        try:
+            #  while True:
+            chunk = self.socket.recv(MAX_BUFFER)
+            print("got", chunk)
+            if chunk == b"":
+                raise RuntimeError("socket connection broken while recieving")
+            self.read_buffer += chunk
+        #  return chunk
+        except Exception as e:
+            logging.error(e)
 
-    def handle_handshake(self, info_hash, peer_id):
-        hs_sent = Handshake(info_hash, peer_id)
-        #  self.send(hs_sent.to_bytes())
-        with self.lock:
-            self.write_buffer = hs_sent.to_bytes()
+    def send_handshake(self):
+        hs_sent = message.Handshake(self.info_hash, self.peer_id)
+        self.send(hs_sent.to_bytes())
+
+    def handle_handshake(self):
         #  hs_recv = self.receive(Handshake.total_length)
-        #  self.read_buffer =
-        #  if hs_recv.info_hash != hs_sent.info_hash:
-        #      raise ValueError("Infohash of handshake doesn't match")
-        #  if hs_recv.peer_id != self.peer_id:
-        #      raise ValueError("Peer ID of handshake doesn't match")
-        #  logging.debug(f"Handshake successful with peer - {self.peer_id}:{self.port}")
+        #  self.receive()
+        hs_recd = message.Handshake.from_bytes(self.read_buffer)
+        self.read_buffer = self.read_buffer[hs_recd.total_length :]
+        self.has_handshaked = True
+        if hs_recd.info_hash != self.info_hash:
+            raise ValueError("Infohash of handshake doesn't match")
+        if hs_recd.peer_id != self.peer_id:
+            raise ValueError("Peer ID of handshake doesn't match")
+        logging.debug(f"Handshake successful with peer - {self.peer_id}:{self.port}")
+
+    def handle_bitfield(self):
+        bitfield_recd = message.Bitfield.from_bytes(self.read_buffer)
+        self.read_buffer = self.read_buffer[bitfield_recd.total_length :]
+        self.bitfield = bitfield_recd.bitfield
+        logging.debug(f"Got bitfield - {self.bitfield}")
+
+    #  def handle_interested(self):
+    # check if peer has unchoked
+    # if peer has unchoked client already then dont send this message
+    # if peer has not sent unchoked message send this message
+    #  if len(self.read_buffer)
+
+    def handle_keep_alive(self):
+        keep_alive_recd = message.KeepAlive(self.read_buffer)
+        self.read_buffer = self.read_buffer[: keep_alive_recd.total_length]
+        logging.debug(f"Keep Alive message")
+
+    def get_messages(self):
+        while len(self.read_buffer) > 4 and self.is_healthy:
+            if not self.has_handshaked:
+                self.handle_handshake()
+                continue
+            else:
+                self.handle_keep_alive()
+                continue
+
+            (payload_length,) = struct.unpack(">I", self.read_buffer[:4])
+            total_length = payload_length + 4
+
+            if len(self.read_buffer) < total_length:
+                break
+            else:
+                payload = self.read_buffer[:total_length]
+                self.read_buffer = self.read_buffer[total_length:]
+
+            try:
+                received_message = message.MessageDispatcher(payload).dispatch()
+                if received_message:
+                    yield received_message
+            except message.WrongMessageException as e:
+                logging.exception(e)
