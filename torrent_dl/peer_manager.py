@@ -1,24 +1,23 @@
-import socket
-import math
 import logging
-from peer import Peer
-import select
+import math
 import os
+import select
 from random import randint
 from threading import Thread
-import requests
-import message
+from typing import Dict, List, Set, Union
 
-from typing import List, Set, Dict, Union
 import bencodepy
+import message
+import requests
+from peer import Peer
 from torrent import Torrent
 
 BASE_DIR: str = os.path.dirname(__file__)
 CLIENT_ID: str = "BT"
 VERSION: tuple = (0, 0, 10)
-MAX_PEERS: int = 30
-MAX_CONNECTED_PEERS: int = 0
-PeersType = Set[Dict[bytes, Union[int, bytes]]]
+MAX_PEERS: int = 50
+MAX_CONNECTED_PEERS: int = 5
+PeersType = List[Dict[bytes, Union[int, bytes]]]
 
 # TODO
 #  1. Limit number of peers to fetch
@@ -38,12 +37,12 @@ class PeerManager(Thread):
         self.bitfield_length = math.ceil(len(torrent.pieces) / 8)
         self.port: int = 6881
         self.is_active = True
-        self.peers: Set[Peer] = []
+        self.peers: List[Peer] = []
 
     def get_peers(self) -> None:
         """Get list of all peers from the given trackers"""
 
-        params = {
+        params: Dict[str, Union[bytes, int]] = {
             "info_hash": self.info_hash,
             "peer_id": self.peer_id,
             "port": self.port,
@@ -57,11 +56,12 @@ class PeerManager(Thread):
                 break
 
             try:
-                data = requests.get(tracker, params=params)
+                data: requests.Response = requests.get(tracker, params=params)
                 self.scrape_response(data.content)
                 logging.debug(f"successfully connected to tracker: {tracker}")
-            except Exception as err:
-                print(err)
+            except Exception as e:
+                logging.exception(f"Error in tracker: {tracker}")
+                logging.exception(e)
 
         self.add_peers()
 
@@ -70,20 +70,21 @@ class PeerManager(Thread):
             if len(self.peers) > MAX_CONNECTED_PEERS:
                 break
 
-            peer = Peer(
+            peer: Peer = Peer(
                 p[b"peer id"],
                 p[b"ip"],
                 p[b"port"],
                 self.info_hash,
                 self.bitfield_length,
             )
+
             try:
-                peer.connect()
-                #  peer.send_handshake()
-                #  self.peers.add(peer)
-                self.peers.append(peer)
+                if peer.connect() and self._do_handshake(peer):
+                    # self.peers.add(peer)
+                    self.peers.append(peer)
             except Exception as e:
-                logging.exception(e)
+                # self.raw_peers.remove(p)
+                logging.error(e)
 
         logging.debug("added peers")
 
@@ -94,51 +95,43 @@ class PeerManager(Thread):
             logging.exception(e)
 
         self.peers.remove(peer)
+        logging.debug(f"Peer - {peer.ip} removed")
 
     def scrape_response(self, res):
         self.raw_peers += bencodepy.decode(res)[b"peers"]
 
-    def get_peer_by_socket(self, socket):
-        for peer in self.peers:
-            if peer.socket == socket:
-                return peer
-        raise Exception("Peer not found")
-
     @staticmethod
     def _read_from_socket(sock):
-        data = b""
+        data: bytes = b""
 
         while True:
             try:
-                buff = sock.recv(4096)
+                buff: bytes = sock.recv(4096)
                 if len(buff) <= 0:
                     break
 
                 data += buff
-            except socket.error as e:
-                err = e.args[0]
-                break
-            except Exception:
-                logging.exception("Recv failed")
+            except Exception as e:
+                logging.exception(e)
                 break
 
         return data
 
     def run(self):
-        #  p = self.peers[0]
-        #  pr = Peer(p[b"peer id"], p[b"ip"], p[b"port"], len(self.bitfield))
-        #  pr.connect()
-        #  prs = [pr]
         while self.is_active:
             if len(self.peers) == 0:
                 print("No peer")
                 break
-            read = [peer.socket for peer in self.peers]
-            write = [peer.socket for peer in self.peers if peer.write_buffer != b""]
+
+            read = [peer for peer in self.peers]
+            write = [peer for peer in self.peers if peer.write_buffer != b""]
             read_list, write_list, err = select.select(read, write, [])
 
-            for sock in write_list:
-                peer = self.get_peer_by_socket(sock)
+            for peer in write_list:
+                if not peer.is_healthy:
+                    self.remove_peer(peer)
+                    continue
+
                 try:
                     peer.send()
                 except Exception as e:
@@ -146,16 +139,14 @@ class PeerManager(Thread):
                     logging.exception(e)
                     continue
 
-            for sock in read_list:
-                peer = self.get_peer_by_socket(sock)
-
+            for peer in read_list:
                 if not peer.is_healthy:
                     self.remove_peer(peer)
                     continue
 
                 try:
                     data = self._read_from_socket(peer.socket)
-                    #  peer.receive()
+                    # peer.receive()
                 except Exception as e:
                     self.remove_peer(peer)
                     logging.exception(e)
@@ -164,7 +155,7 @@ class PeerManager(Thread):
                 peer.read_buffer += data
 
                 for msg in peer.get_messages():
-                    self._process_new_message(msg)
+                    self._process_new_message(msg, peer)
 
     @staticmethod
     def generate_peer_id() -> bytes:
@@ -180,6 +171,20 @@ class PeerManager(Thread):
 
         logging.info(f"peer id of client is {peer_id}")
         return peer_id.encode()
+
+    def _do_handshake(self, peer):
+        try:
+            handshake: message.Handshake = message.Handshake(
+                self.info_hash, self.peer_id
+            )
+            peer.write_buffer = handshake.to_bytes()
+            peer.send()
+            logging.info("new peer added : %s" % peer.ip)
+        except Exception:
+            logging.exception(f"Error when sending Handshake message to peer {peer.ip}")
+            return False
+
+        return True
 
     def _process_new_message(self, new_message: message.Message, peer: Peer):
         if isinstance(new_message, message.Handshake) or isinstance(
@@ -202,7 +207,7 @@ class PeerManager(Thread):
         elif isinstance(new_message, message.Have):
             peer.handle_have(new_message)
 
-        elif isinstance(new_message, message.BitField):
+        elif isinstance(new_message, message.Bitfield):
             peer.handle_bitfield(new_message)
 
         elif isinstance(new_message, message.Request):
@@ -218,7 +223,7 @@ class PeerManager(Thread):
             peer.handle_port_request()
 
         else:
-            logging.error("Unknown message")
+            logging.error(f"Unknown message - {new_message}")
 
 
 # TODO: 1. get trackers

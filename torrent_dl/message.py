@@ -1,9 +1,10 @@
 #  TODO:
 #      1. bitfield message
 #      2. port message (used for dht tracekers)
-import bitstring
 import logging
 from struct import pack, unpack
+
+import bitstring
 
 
 class MessageDispatcher:
@@ -28,18 +29,18 @@ class MessageDispatcher:
         }
 
         try:
-            length_prefix = unpack(">I", self.payload[:4])
+            (length_prefix,) = unpack(">I", self.payload[:4])
 
             if length_prefix == 0:
                 # keep alive message
                 return KeepAlive.from_bytes(self.payload)
 
-            message_id = unpack(">B", self.read_buffer[4:5])
+            (message_id,) = unpack(">B", self.payload[4:5])
         except Exception as e:
             logging.exception(e)
 
         if message_id not in map_id_to_message.keys():
-            raise Exception("Wrong message id")
+            raise Exception(f"Wrong message id {message_id}")
 
         return map_id_to_message[message_id].from_bytes(self.payload)
 
@@ -126,7 +127,7 @@ class KeepAlive(Message):
     def from_bytes(cls, payload: bytes):
         length_prefix: int
 
-        length_prefix = unpack(cls.encoding_format, payload)
+        (length_prefix,) = unpack(cls.encoding_format, payload[: cls.total_length])
 
         if length_prefix != cls.length_prefix:
             raise ValueError("Invalid KeepAlive message")
@@ -280,7 +281,7 @@ class Have(Message):
     """
 
     length_prefix: int = 5
-    encoding_format: str = ">IB4s"
+    encoding_format: str = ">IBI"
     message_id: int = 4
 
     def __init__(self, piece_index):

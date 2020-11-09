@@ -16,6 +16,8 @@ pytest-cov = "*"
 bcoding = "*"
 aiohttp = "*"
 bitstring = "*"
+"bencode.py" = "*"
+requests = "*"
 
 [requires]
 python_version = "3.8"

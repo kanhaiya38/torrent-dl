@@ -1,11 +1,10 @@
+import logging
 import math
 import os
-import logging
-from torrent import Torrent
-from peer_manager import PeerManager
-from peer import Peer
+
 import bitstring
-import multiprocessing
+from peer_manager import PeerManager
+from torrent import Torrent
 
 BASE_DIR: str = os.path.dirname(__file__)
 
@@ -18,25 +17,25 @@ class DownloadManager:
 
     def conn(self):
         self.pm.get_peers()
-        #  self.pm.start()
-        #  print(self.torrent.pieces)
-        p = self.pm.peers[0]
-        #  pr = Peer(
-            #  p[b"peer id"], p[b"ip"], p[b"port"], self.info_hash, len(self.bitfield)
-        #  )
-        #  if pr.connect():
-        #  self.connected.append(pr)
-        #  m = multiprocessing.Process(target=pr.connect)
-        #  m.start()
-        #  print(self.bitfield)
-        #  p.connect()
-        p.send()
-        p.receive()
-        print(p.read_buffer)
-        p.handle_handshake()
-        p.receive()
-        print(p.read_buffer)
-        p.handle_bitfield()
+        self.pm.start()
+        # print(self.torrent.pieces)
+        # p = self.pm.peers[0]
+        # pr = Peer(
+        #  p[b"peer id"], p[b"ip"], p[b"port"], self.info_hash, len(self.bitfield)
+        # )
+        # if pr.connect():
+        # self.connected.append(pr)
+        # m = multiprocessing.Process(target=pr.connect)
+        # m.start()
+        # print(self.bitfield)
+        # p.connect()
+        # p.send()
+        # p.receive()
+        # print(p.read_buffer)
+        # p.handle_handshake()
+        # p.receive()
+        # print(p.read_buffer)
+        # p.handle_bitfield()
         #  pr.write_buffer = .to_bytes()
 
 
