@@ -3,6 +3,7 @@
 #      2. port message (used for dht tracekers)
 import logging
 from struct import pack, unpack
+from typing import ClassVar
 
 import bitstring
 
@@ -46,7 +47,7 @@ class MessageDispatcher:
 
 
 class Message:
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         raise NotImplementedError
 
     def from_bytes(self, payload: bytes):
@@ -65,10 +66,10 @@ class Handshake(Message):
     In version 1.0 of the BitTorrent protocol, pstrlen = 19, and pstr = "BitTorrent protocol".
     """
 
-    pstr: bytes = b"BitTorrent protocol"
-    pstrlen: int = len(pstr)
-    encoding_format: str = f">B{pstrlen}s8s20s20s"
-    total_length: int = 68
+    pstr: ClassVar[bytes] = b"BitTorrent protocol"
+    pstrlen: ClassVar[int] = len(pstr)
+    encoding_format: ClassVar[str] = f">B{pstrlen}s8s20s20s"
+    total_length: ClassVar[int] = 68
 
     def __init__(self, info_hash: bytes, peer_id: bytes):
         super().__init__()
@@ -79,9 +80,9 @@ class Handshake(Message):
         reserved: bytes = b"\x00" * 8
 
         return pack(
-            self.encoding_format,
-            self.pstrlen,
-            self.pstr,
+            Handshake.encoding_format,
+            Handshake.pstrlen,
+            Handshake.pstr,
             reserved,
             self.info_hash,
             self.peer_id,
@@ -113,15 +114,15 @@ class KeepAlive(Message):
     payload: NO
     """
 
-    encoding_format: str = ">I"
-    length_prefix: int = 0
-    total_length: int = 4
+    encoding_format: ClassVar[str] = ">I"
+    length_prefix: ClassVar[int] = 0
+    total_length: ClassVar[int] = 4
 
     def __init__(self):
         super().__init__()
 
     def to_bytes(self):
-        return pack(self.encoding_format, self.length_prefix)
+        return pack(KeepAlive.encoding_format, KeepAlive.length_prefix)
 
     @classmethod
     def from_bytes(cls, payload: bytes):
@@ -143,22 +144,25 @@ class Choke(Message):
     payload: NO
     """
 
-    length_prefix: int = 1
-    encoding_format: str = ">IB"
-    message_id: int = 0
+    length_prefix: ClassVar[int] = 1
+    encoding_format: ClassVar[str] = ">IB"
+    message_id: ClassVar[int] = 0
+    total_length: ClassVar[int] = 5
 
     def __init__(self):
         super().__init__()
 
     def to_bytes(self):
-        return pack(self.encoding_format, self.length_prefix, self.message_id)
+        return pack(Choke.encoding_format, Choke.length_prefix, Choke.message_id)
 
     @classmethod
     def from_bytes(cls, payload: bytes):
         length_prefix: int
         message_id: int
 
-        length_prefix, message_id = unpack(cls.encoding_format, payload)
+        length_prefix, message_id = unpack(
+            cls.encoding_format, payload[: cls.total_length]
+        )
 
         if length_prefix != cls.length_prefix:
             raise Exception("Invalid prefix length for Choke message")
@@ -177,22 +181,25 @@ class UnChoke(Message):
     payload: NO
     """
 
-    length_prefix: int = 1
-    encoding_format: str = ">IB"
-    message_id: int = 1
+    length_prefix: ClassVar[int] = 1
+    encoding_format: ClassVar[str] = ">IB"
+    message_id: ClassVar[int] = 1
+    total_length: ClassVar[int] = 5
 
     def __init__(self):
         super().__init__()
 
     def to_bytes(self):
-        return pack(self.encoding_format, self.length_prefix, self.message_id)
+        return pack(UnChoke.encoding_format, UnChoke.length_prefix, UnChoke.message_id)
 
     @classmethod
     def from_bytes(cls, payload: bytes):
         length_prefix: int
         message_id: int
 
-        length_prefix, message_id = unpack(cls.encoding_format, payload)
+        length_prefix, message_id = unpack(
+            cls.encoding_format, payload[: cls.total_length]
+        )
 
         if length_prefix != cls.length_prefix:
             raise Exception("Invalid prefix length for Unchoke message")
@@ -211,22 +218,27 @@ class Interested(Message):
     payload: NO
     """
 
-    length_prefix: int = 1
-    encoding_format: str = ">IB"
-    message_id: int = 2
+    length_prefix: ClassVar[int] = 1
+    encoding_format: ClassVar[str] = ">IB"
+    message_id: ClassVar[int] = 2
+    total_length: ClassVar[int] = 5
 
     def __init__(self):
         super().__init__()
 
     def to_bytes(self):
-        return pack(self.encoding_format, self.length_prefix, self.message_id)
+        return pack(
+            Interested.encoding_format, Interested.length_prefix, Interested.message_id
+        )
 
     @classmethod
     def from_bytes(cls, payload: bytes):
         length_prefix: int
         message_id: int
 
-        length_prefix, message_id = unpack(cls.encoding_format, payload)
+        length_prefix, message_id = unpack(
+            cls.encoding_format, payload[: cls.total_length]
+        )
 
         if length_prefix != cls.length_prefix:
             raise Exception("Invalid prefix length for Interested message")
@@ -245,22 +257,29 @@ class NotInterested(Message):
     payload: NO
     """
 
-    length_prefix: int = 1
-    encoding_format: str = ">IB"
-    message_id: int = 3
+    length_prefix: ClassVar[int] = 1
+    encoding_format: ClassVar[str] = ">IB"
+    message_id: ClassVar[int] = 3
+    total_length: ClassVar[int] = 5
 
     def __init__(self):
         super().__init__()
 
     def to_bytes(self):
-        return pack(self.encoding_format, self.length_prefix, self.message_id)
+        return pack(
+            NotInterested.encoding_format,
+            NotInterested.length_prefix,
+            NotInterested.message_id,
+        )
 
     @classmethod
     def from_bytes(cls, payload: bytes):
         length_prefix: int
         message_id: int
 
-        length_prefix, message_id = unpack(cls.encoding_format, payload)
+        length_prefix, message_id = unpack(
+            cls.encoding_format, payload[: cls.total_length]
+        )
 
         if length_prefix != cls.length_prefix:
             raise Exception("Invalid prefix length for NotInterested message")
@@ -280,9 +299,10 @@ class Have(Message):
         piece index: zero-based index of a piece that has just been successfully downloaded and verified via the hash (4 bytes)
     """
 
-    length_prefix: int = 5
-    encoding_format: str = ">IBI"
-    message_id: int = 4
+    length_prefix: ClassVar[int] = 5
+    encoding_format: ClassVar[str] = ">IBI"
+    message_id: ClassVar[int] = 4
+    total_length: ClassVar[int] = 9
 
     def __init__(self, piece_index):
         super().__init__()
@@ -290,7 +310,7 @@ class Have(Message):
 
     def to_bytes(self):
         return pack(
-            self.encoding_format, self.length_prefix, self.message_id, self.piece_index
+            Have.encoding_format, Have.length_prefix, Have.message_id, self.piece_index
         )
 
     @classmethod
@@ -299,7 +319,9 @@ class Have(Message):
         message_id: int
         piece_index: int
 
-        length_prefix, message_id, piece_index = unpack(cls.encoding_format, payload)
+        length_prefix, message_id, piece_index = unpack(
+            cls.encoding_format, payload[: cls.total_length]
+        )
 
         if length_prefix != cls.length_prefix:
             raise Exception("Invalid prefix length for Have message")
@@ -319,7 +341,7 @@ class Bitfield(Message):
         bitfield: bitfield representing the pieces that have been successfully downloaded (X bytes)
     """
 
-    message_id: int = 5
+    message_id: ClassVar[int] = 5
 
     def __init__(self, bitfield: bitstring.BitArray):
         super().__init__()
@@ -327,12 +349,11 @@ class Bitfield(Message):
         self.bitfield_length: int = len(self.bitfield)
         self.length_prefix: int = 1 + self.bitfield_length
         self.encoding_format: str = f">IB{self.bitfield_length}s"
-        self.total_length = self.length_prefix + 4
+        self.total_length: int = self.length_prefix + 4
 
-    def to_bytes(self):
-
+    def to_bytes(self) -> bytes:
         return pack(
-            self.encoding_format, self.length_prefix, self.message_id, self.bitfield
+            self.encoding_format, self.length_prefix, Bitfield.message_id, self.bitfield
         )
 
     @classmethod
@@ -349,8 +370,8 @@ class Bitfield(Message):
         if message_id != cls.message_id:
             raise Exception("Invalid message id for Bitfield message")
 
-        bitfield_length = length_prefix - 1
-        total_length = length_prefix + 4
+        bitfield_length: int = length_prefix - 1
+        total_length: int = length_prefix + 4
         (raw_bitfield,) = unpack(f">{bitfield_length}s", payload[5:total_length])
 
         bitfield = bitstring.BitArray(raw_bitfield)
@@ -369,21 +390,22 @@ class Request(Message):
         length: integer specifying the requested length (4 bytes)
     """
 
-    length_prefix: int = 13
-    message_id: int = 6
-    encoding_format: str = ">IB4s4s4s"
+    length_prefix: ClassVar[int] = 13
+    message_id: ClassVar[int] = 6
+    encoding_format: ClassVar[str] = ">IBIII"
+    total_length: ClassVar[int] = 17  # length prefix + 4
 
-    def __init__(self, index, begin, length):
+    def __init__(self, piece_index: int, block_begin: int, block_length: int) -> None:
         super().__init__()
-        self.piece_index = index
-        self.block_begin = begin
-        self.block_length = length
+        self.piece_index: int = piece_index
+        self.block_begin: int = block_begin
+        self.block_length: int = block_length
 
     def to_bytes(self):
         return pack(
-            self.encoding_format,
-            self.length_prefix,
-            self.message_id,
+            Request.encoding_format,
+            Request.length_prefix,
+            Request.message_id,
             self.piece_index,
             self.block_begin,
             self.block_length,
@@ -391,8 +413,14 @@ class Request(Message):
 
     @classmethod
     def from_bytes(cls, payload: bytes):
+        length_prefix: int
+        message_id: int
+        piece_index: int
+        block_begin: int
+        block_length: int
+
         length_prefix, message_id, piece_index, block_begin, block_length = unpack(
-            cls.encoding_format, payload
+            cls.encoding_format, payload[: cls.total_length]
         )
 
         if length_prefix != cls.length_prefix:
@@ -415,22 +443,23 @@ class Piece(Message):
         block: block of data, which is a subset of the piece specified by index (block length bytes)
     """
 
-    message_id = 7
+    message_id: ClassVar[int] = 7
 
-    def __init__(self, index, begin, block):
+    def __init__(self, piece_index: int, block_begin: int, block: bytes):
         super().__init__()
-        self.piece_index = index
-        self.block_begin = begin
-        self.block = block
+        self.piece_index: int = piece_index
+        self.block_begin: int = block_begin
+        self.block: bytes = block
         self.block_length: int = len(block)
         self.length_prefix: int = 9 + self.block_length
-        self.encoding_format: str = f">IB4s4s{self.block_length}s"
+        self.encoding_format: str = f">IBII{self.block_length}s"
+        self.total_length: int = self.length_prefix + 4
 
     def to_bytes(self):
         return pack(
             self.encoding_format,
             self.length_prefix,
-            self.message_id,
+            Piece.message_id,
             self.piece_index,
             self.block_begin,
             self.block,
@@ -438,11 +467,21 @@ class Piece(Message):
 
     @classmethod
     def from_bytes(cls, payload: bytes):
-        block_length = len(payload) - 13
+        length_prefix: int
+        message_id: int
+        piece_index: int
+        block_begin: int
+        block: bytes
+        block_start: int = 13
 
-        length_prefix, message_id, piece_index, block_begin, block = unpack(
-            f">IB4s4s{block_length}s", payload
+        length_prefix, message_id, piece_index, block_begin = unpack(
+            ">IBII", payload[:block_start]
         )
+
+        total_length: int = length_prefix + 4
+        block_length: int = length_prefix - 9
+
+        (block,) = unpack(f">{block_length}s", payload[block_start:total_length])
 
         if message_id != cls.message_id:
             raise Exception("Invalid message id for Piece message")
@@ -461,21 +500,22 @@ class Cancel(Message):
         length: integer specifying the requested length (4 bytes)
     """
 
-    length_prefix = 13
-    message_id = 8
-    encoding_format = ">IB4s4s4s"
+    length_prefix: ClassVar[int] = 13
+    message_id: ClassVar[int] = 8
+    encoding_format: ClassVar[str] = ">IBIII"
+    total_length: ClassVar[int] = 17  # length_prefix + 4
 
-    def __init__(self, index, begin, length):
+    def __init__(self, piece_index: int, block_begin: int, block_length: int):
         super().__init__()
-        self.piece_index = index
-        self.block_begin = begin
-        self.block_length = length
+        self.piece_index: int = piece_index
+        self.block_begin: int = block_begin
+        self.block_length: int = block_length
 
     def to_bytes(self):
         return pack(
-            self.encoding_format,
-            self.length_prefix,
-            self.message_id,
+            Cancel.encoding_format,
+            Cancel.length_prefix,
+            Cancel.message_id,
             self.piece_index,
             self.block_begin,
             self.block_length,
@@ -483,8 +523,14 @@ class Cancel(Message):
 
     @classmethod
     def from_bytes(cls, payload: bytes):
+        length_prefix: int
+        message_id: int
+        piece_index: int
+        block_begin: int
+        block_length: int
+
         length_prefix, message_id, piece_index, block_begin, block_length = unpack(
-            cls.encoding_format, payload
+            cls.encoding_format, payload[: cls.total_length]
         )
 
         if length_prefix != cls.length_prefix:

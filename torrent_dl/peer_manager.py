@@ -2,7 +2,7 @@ import logging
 import math
 import os
 import select
-from random import randint
+from random import randint, choice
 from threading import Thread
 from typing import Dict, List, Set, Union
 
@@ -10,6 +10,7 @@ import bencodepy
 import message
 import requests
 from peer import Peer
+from math import ceil
 from torrent import Torrent
 
 BASE_DIR: str = os.path.dirname(__file__)
@@ -34,7 +35,7 @@ class PeerManager(Thread):
         self.raw_peers: PeersType = []
         self.info_hash: bytes = torrent.info_hash
         self.total_length: int = torrent.total_length
-        self.bitfield_length = math.ceil(len(torrent.pieces) / 8)
+        self.bitfield_length = ceil(len(torrent.pieces) / 8)
         self.port: int = 6881
         self.is_active = True
         self.peers: List[Peer] = []
@@ -79,7 +80,9 @@ class PeerManager(Thread):
             )
 
             try:
-                if peer.connect() and self._do_handshake(peer):
+                # if peer.connect() and self._do_handshake(peer):
+                if peer.connect():
+                    peer.send_handshake(self.peer_id)
                     # self.peers.add(peer)
                     self.peers.append(peer)
             except Exception as e:
@@ -100,23 +103,6 @@ class PeerManager(Thread):
     def scrape_response(self, res):
         self.raw_peers += bencodepy.decode(res)[b"peers"]
 
-    @staticmethod
-    def _read_from_socket(sock):
-        data: bytes = b""
-
-        while True:
-            try:
-                buff: bytes = sock.recv(4096)
-                if len(buff) <= 0:
-                    break
-
-                data += buff
-            except Exception as e:
-                logging.exception(e)
-                break
-
-        return data
-
     def run(self):
         while self.is_active:
             if len(self.peers) == 0:
@@ -128,7 +114,7 @@ class PeerManager(Thread):
             read_list, write_list, err = select.select(read, write, [])
 
             for peer in write_list:
-                if not peer.is_healthy:
+                if not peer.healthy:
                     self.remove_peer(peer)
                     continue
 
@@ -140,19 +126,16 @@ class PeerManager(Thread):
                     continue
 
             for peer in read_list:
-                if not peer.is_healthy:
+                if not peer.healthy:
                     self.remove_peer(peer)
                     continue
 
                 try:
-                    data = self._read_from_socket(peer.socket)
-                    # peer.receive()
+                    peer.receive()
                 except Exception as e:
                     self.remove_peer(peer)
                     logging.exception(e)
                     continue
-
-                peer.read_buffer += data
 
                 for msg in peer.get_messages():
                     self._process_new_message(msg, peer)
@@ -171,20 +154,6 @@ class PeerManager(Thread):
 
         logging.info(f"peer id of client is {peer_id}")
         return peer_id.encode()
-
-    def _do_handshake(self, peer):
-        try:
-            handshake: message.Handshake = message.Handshake(
-                self.info_hash, self.peer_id
-            )
-            peer.write_buffer = handshake.to_bytes()
-            peer.send()
-            logging.info("new peer added : %s" % peer.ip)
-        except Exception:
-            logging.exception(f"Error when sending Handshake message to peer {peer.ip}")
-            return False
-
-        return True
 
     def _process_new_message(self, new_message: message.Message, peer: Peer):
         if isinstance(new_message, message.Handshake) or isinstance(
@@ -224,6 +193,22 @@ class PeerManager(Thread):
 
         else:
             logging.error(f"Unknown message - {new_message}")
+
+    def get_peer_having_piece(self, piece_index: int):
+        ready_peers = []
+
+        for peer in self.peers:
+            if peer.is_ready and peer.is_eligible and peer.has_piece(piece_index):
+                ready_peers.append(peer)
+
+        return choice(ready_peers) if ready_peers else None
+
+    @property
+    def has_unchoked_peers(self) -> bool:
+        for peer in self.peers:
+            if not peer.peer_choking:
+                return True
+        return False
 
 
 # TODO: 1. get trackers

@@ -13,7 +13,6 @@ pytest = "*"
 pytest-cov = "*"
 
 [packages]
-bcoding = "*"
 aiohttp = "*"
 bitstring = "*"
 "bencode.py" = "*"
